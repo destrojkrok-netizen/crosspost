@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Crosspost
 
-## Getting Started
+Write once, publish to every connected channel. A thin web UI over the
+[Postiz](https://postiz.com) public API: Postiz holds the OAuth connections to 28+
+platforms; this app is the composer and queue.
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # add POSTIZ_API_KEY (Postiz → Settings → Public API)
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without a key the app runs in **demo mode** with six fake channels and an in-memory queue.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## What it does
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Channels: pick all / none / individual; **Add channel** — in demo mode a local channel of any of the 24 platforms (kept in `data/demo-channels.json`), with a Postiz key a guided "connect in Postiz → refresh list" flow (OAuth lives in Postiz; the public API has no connect endpoint).
+- One shared text; per-channel override tabs; live character count against each
+  platform's limit (fetched from Postiz), with over-limit channels flagged.
+- Media: drag-drop or pick; uploaded to Postiz first (TikTok, Instagram, YouTube reject
+  external URLs).
+- Post now, schedule, or save as draft — one request fans out to every selected channel.
+- Queue: cross-posts grouped, state badges, link to the published post, delete.
+- Analytics: followers / impressions / likes per channel over 7, 30, or 90 days (Recharts). **Refreshes itself** every 60 s while the tab is visible, immediately after a "Post now", and on tab focus; the queue re-polls every 30 s so `queue → published` shows up without a reload.
+- Post stats: on a published row, the chart icon shows views / likes / comments per platform, polled on the same cadence.
+- Responsive: three columns on desktop, Compose / Queue / Stats tabs on phones and tablets.
 
-## Learn More
+Stack: Next.js 16 (App Router), Tailwind v4, shadcn/ui, Recharts, lucide icons.
 
-To learn more about Next.js, take a look at the following resources:
+## Layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/lib/postiz.ts        server-only client (key never reaches the browser)
+src/lib/demo.ts          demo-mode data
+src/app/api/*            route handlers proxying to Postiz
+src/components/*         App (state), ChannelPicker, Composer, Queue, Analytics, ProviderBadge
+src/components/ui/*      shadcn/ui primitives
+src/hooks/use-is-desktop matchMedia hook that picks the desktop or tabbed layout
+src/hooks/use-polling    visibility-aware interval used by the queue, analytics, and post stats
+src/lib/providers.ts     the 24 Postiz platforms and their character limits
+```
