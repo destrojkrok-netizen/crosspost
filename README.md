@@ -4,6 +4,15 @@ Self-hosted Postiz alternative: write once, publish to Threads, X, Instagram, Ti
 Telegram and Bluesky through their own APIs. Runs on Cloudflare Workers (D1, R2, Cron).
 No third-party posting service in the middle.
 
+## Accounts
+
+Sign-in is Google OAuth; every Google account gets its own workspace (channels, queue,
+media, analytics). Create an OAuth client at console.cloud.google.com (Web application)
+with redirect URI `<APP_URL>/api/auth/google/callback` and set `GOOGLE_CLIENT_ID` /
+`GOOGLE_CLIENT_SECRET`. `ALLOWED_EMAILS` (optional) restricts sign-in to a list;
+`OWNER_EMAILS` inherit channels that were created before accounts existed. Sessions are
+HMAC-signed cookies (`SESSION_SECRET`, falls back to `TOKEN_KEY`), 30 days.
+
 ## Run locally
 
 ```bash
@@ -33,6 +42,8 @@ npx wrangler r2 bucket create crosspost-media
 npm run db:migrate                       # remote
 npx wrangler secret put TOKEN_KEY        # openssl rand -base64 32
 npx wrangler secret put CRON_SECRET
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put THREADS_APP_ID   # …and the other platform keys you use
 npm run cf:deploy
 ```
@@ -65,6 +76,8 @@ src/lib/db.ts              D1 queries
 src/lib/channels.ts        connect + credential refresh
 src/lib/publisher.ts       claim due posts, publish, retry
 src/lib/metrics.ts         snapshots and chart series
+src/proxy.ts               sign-in gate (everything but /login, auth, cron, media)
+src/lib/session.ts         signed session cookie
 src/app/api/*              routes
 src/components/*           App, ChannelPicker, AddChannelDialog, Composer, Queue, Analytics
 ```

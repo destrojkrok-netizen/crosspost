@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { posts } from "@/lib/db";
-import { env } from "@/lib/env";
+import { env, requireUser } from "@/lib/env";
 import { refreshSubject, seriesFor } from "@/lib/metrics";
 import { fail } from "../../../_lib";
 
@@ -8,8 +8,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const days = Math.min(90, Math.max(1, Number(new URL(request.url).searchParams.get("days")) || 7));
   try {
     const e = await env();
+    const user = await requireUser(request, e);
     const id = (await params).id;
-    const post = await posts.get(e.DB, id);
+    const post = await posts.get(e.DB, id, user.uid);
+    if (!post) return NextResponse.json([]);
     if (post && post.state === "PUBLISHED" && !post.release_id) return NextResponse.json({ missing: true });
     const subject = `post:${id}`;
     let series = await seriesFor(e, subject, days);

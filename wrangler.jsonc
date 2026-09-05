@@ -21,6 +21,10 @@
   // TIKTOK_CLIENT_SECRET, IG_APP_ID, IG_APP_SECRET.
   "vars": {
     "APP_URL": "https://crosspost.destrojkrok.workers.dev",
+    // Sign-in is open to any Google account; each gets its own workspace. Set ALLOWED_EMAILS
+    // (comma-separated) to restrict it. OWNER_EMAILS inherit channels created before accounts
+    // existed. Secrets: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SECRET.
+    "OWNER_EMAILS": "destrojkrok@gmail.com",
     "MEDIA_PUBLIC_URL": "https://pub-4f092f3191f343a39b8b512916ff8a8e.r2.dev"
   }
 }

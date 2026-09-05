@@ -19,6 +19,11 @@ declare global {
     TIKTOK_CLIENT_SECRET?: string;
     IG_APP_ID?: string;
     IG_APP_SECRET?: string;
+    GOOGLE_CLIENT_ID?: string;
+    GOOGLE_CLIENT_SECRET?: string;
+    SESSION_SECRET?: string;
+    ALLOWED_EMAILS?: string;
+    OWNER_EMAILS?: string;
   }
 }
 

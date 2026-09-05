@@ -12,7 +12,7 @@ export function providerContext(env: CloudflareEnv, providerId: string): Provide
 }
 
 /** Verify the credentials with the platform, then store the channel (encrypted). */
-export async function createChannel(env: CloudflareEnv, providerId: string, cred: Credentials): Promise<Channel> {
+export async function createChannel(env: CloudflareEnv, userId: string, providerId: string, cred: Credentials): Promise<Channel> {
   const p = provider(providerId);
   const ctx = providerContext(env, providerId);
   const who = await p.whoami(ctx, cred);
@@ -25,10 +25,11 @@ export async function createChannel(env: CloudflareEnv, providerId: string, cred
     credentials: await seal({ ...cred, userId: cred.userId ?? who.id, username: who.username ?? cred.username }, env.TOKEN_KEY),
     disabled: 0,
     created_at: Date.now(),
+    user_id: userId,
   };
-  // One channel per account: replace an existing connection of the same account.
-  for (const existing of await channels.all(env.DB)) {
-    if (existing.provider === p.id && existing.external_id === who.id) await channels.remove(env.DB, existing.id);
+  // One channel per account per user: replace an existing connection of the same account.
+  for (const existing of await channels.all(env.DB, userId)) {
+    if (existing.provider === p.id && existing.external_id === who.id) await channels.remove(env.DB, existing.id, userId);
   }
   await channels.insert(env.DB, row);
   return { id: row.id, name: row.name, identifier: p.id, picture: row.picture, externalId: row.external_id };
@@ -45,8 +46,8 @@ export async function credentialsFor(env: CloudflareEnv, row: ChannelRow): Promi
   return cred;
 }
 
-export async function requireChannel(env: CloudflareEnv, id: string): Promise<ChannelRow> {
-  const row = await channels.get(env.DB, id);
+export async function requireChannel(env: CloudflareEnv, id: string, userId: string): Promise<ChannelRow> {
+  const row = await channels.get(env.DB, id, userId);
   if (!row) throw new AppError("Unknown channel", 404);
   return row;
 }

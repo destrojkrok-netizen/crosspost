@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { createChannel, providerContext } from "@/lib/channels";
 import { channels, toChannel } from "@/lib/db";
-import { env } from "@/lib/env";
+import { env, requireUser } from "@/lib/env";
 import { provider } from "@/lib/providers";
 import { bad, fail } from "../_lib";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const e = await env();
-    return NextResponse.json((await channels.all(e.DB)).map(toChannel));
+    const user = await requireUser(request, e);
+    return NextResponse.json((await channels.all(e.DB, user.uid)).map(toChannel));
   } catch (error) {
     return fail(error);
   }
@@ -24,10 +25,11 @@ export async function POST(request: Request) {
   }
   try {
     const e = await env();
+    const user = await requireUser(request, e);
     const p = provider(body.identifier ?? "");
     if (p.auth !== "token" || !p.fromFields) return bad(`${p.label} connects through OAuth: use /api/connect/${p.id}`);
     const cred = await p.fromFields(providerContext(e, p.id), body.fields ?? {});
-    return NextResponse.json(await createChannel(e, p.id, cred));
+    return NextResponse.json(await createChannel(e, user.uid, p.id, cred));
   } catch (error) {
     return fail(error);
   }

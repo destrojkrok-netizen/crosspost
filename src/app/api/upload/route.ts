@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { env } from "@/lib/env";
+import { env, requireUser } from "@/lib/env";
 import { storeMedia } from "@/lib/media";
 import { bad, fail } from "../_lib";
 
@@ -11,7 +11,9 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) return bad("No file");
   if (file.size > MAX_BYTES) return bad("File over 100 MB", 413);
   try {
-    return NextResponse.json(await storeMedia(await env(), file));
+    const e = await env();
+    const user = await requireUser(request, e);
+    return NextResponse.json(await storeMedia(e, user.uid, file));
   } catch (error) {
     return fail(error);
   }

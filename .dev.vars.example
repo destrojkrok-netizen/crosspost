@@ -19,3 +19,13 @@ TIKTOK_CLIENT_SECRET=
 # Meta app → Instagram API with Instagram Login. Redirect: <APP_URL>/api/connect/instagram/callback
 IG_APP_ID=
 IG_APP_SECRET=
+
+# Google sign-in (console.cloud.google.com → OAuth client, Web). Redirect: <APP_URL>/api/auth/google/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+# Optional: restrict sign-in to these accounts (empty = anyone with a Google account)
+ALLOWED_EMAILS=
+# Accounts that inherit channels created before sign-in existed
+OWNER_EMAILS=you@gmail.com
+# Session signing key (falls back to TOKEN_KEY)
+SESSION_SECRET=

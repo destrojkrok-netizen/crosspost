@@ -19,7 +19,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
     const saved = await oauthStates.take(e.DB, state);
     if (!saved || saved.provider !== p.id) return back({ connect_error: `${p.label}: state mismatch, try again` });
     const cred = await p.exchange!(providerContext(e, p.id), code, saved.verifier);
-    const channel = await createChannel(e, p.id, cred);
+    const channel = await createChannel(e, saved.user_id, p.id, cred);
     return back({ connected: channel.name });
   } catch (error) {
     return back({ connect_error: error instanceof Error ? error.message : String(error) });

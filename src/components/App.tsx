@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, CalendarClock, PenSquare, Radio } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BarChart3, CalendarClock, LogOut, PenSquare, Radio } from "lucide-react";
 import type { AppStatus, Channel, CreatePostBody, MediaRef, QueuedPost } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { usePolling } from "@/hooks/use-polling";
@@ -24,14 +26,17 @@ export function App({
   initialPosts,
   initialNow,
   initialError,
+  user,
 }: {
   status: AppStatus;
+  user: { email: string; name?: string; picture?: string } | null;
   initialChannels: Channel[];
   initialPosts: QueuedPost[];
   initialNow: number;
   initialError: string | null;
 }) {
   const isDesktop = useIsDesktop();
+  const router = useRouter();
   const [channels, setChannels] = useState(initialChannels);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [limits, setLimits] = useState<Record<string, number>>({});
@@ -233,7 +238,26 @@ export function App({
           <span className="hidden text-sm text-muted-foreground sm:inline">
             Write once, publish everywhere.
           </span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {user && (
+              <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
+                {user.picture && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.picture} alt="" className="size-5 rounded-full" referrerPolicy="no-referrer" />
+                )}
+                {user.email}
+              </span>
+            )}
+            {user && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Sign out"
+                onClick={() => void fetch("/api/auth/logout", { method: "POST" }).then(() => router.push("/login"))}
+              >
+                <LogOut className="size-3.5" />
+              </Button>
+            )}
             {status.demo ? (
               <Badge variant="outline" className="border-warning/40 text-warning">
                 <Radio className="size-3" />

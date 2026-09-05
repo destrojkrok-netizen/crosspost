@@ -21,7 +21,7 @@ const dayOf = (ts: number) => new Date(ts).toISOString().slice(0, 10);
  * Each platform is asked once; a failure on one channel does not stop the others. */
 export async function collectMetrics(env: CloudflareEnv) {
   const today = dayOf(Date.now());
-  const rows = await channels.all(env.DB);
+  const rows = await channels.everyone(env.DB);
   const byId = new Map(rows.map((r) => [r.id, r]));
   const report: Record<string, string> = {};
   for (const row of rows) {

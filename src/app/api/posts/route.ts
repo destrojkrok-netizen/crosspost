@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomId } from "@/lib/crypto";
 import { channels, posts, toPost, type PostRow } from "@/lib/db";
-import { env } from "@/lib/env";
+import { env, requireUser } from "@/lib/env";
 import { provider } from "@/lib/providers";
 import { publishRow } from "@/lib/publisher";
 import type { CreatePostBody } from "@/lib/types";
@@ -13,8 +13,9 @@ export async function GET(request: Request) {
   const to = Date.parse(q.get("endDate") ?? "") || Date.now() + 60 * 864e5;
   try {
     const e = await env();
-    const byId = new Map((await channels.all(e.DB)).map((c) => [c.id, c]));
-    return NextResponse.json((await posts.between(e.DB, from, to)).map((r) => toPost(r, byId.get(r.channel_id))));
+    const user = await requireUser(request, e);
+    const byId = new Map((await channels.all(e.DB, user.uid)).map((c) => [c.id, c]));
+    return NextResponse.json((await posts.between(e.DB, user.uid, from, to)).map((r) => toPost(r, byId.get(r.channel_id))));
   } catch (error) {
     return fail(error);
   }
@@ -32,7 +33,8 @@ export async function POST(request: Request) {
   if (Number.isNaN(publishAt)) return bad("Invalid date");
   try {
     const e = await env();
-    const byId = new Map((await channels.all(e.DB)).map((c) => [c.id, c]));
+    const user = await requireUser(request, e);
+    const byId = new Map((await channels.all(e.DB, user.uid)).map((c) => [c.id, c]));
     const group = randomId("g_");
     const rows: PostRow[] = [];
     for (const item of body.posts) {
@@ -59,11 +61,12 @@ export async function POST(request: Request) {
         error: null,
         attempts: 0,
         created_at: Date.now(),
+        user_id: user.uid,
       });
     }
     await posts.insertMany(e.DB, rows);
     // "Post now" publishes in this request; scheduled posts wait for the cron tick.
-    const results = body.type === "now" ? await Promise.all((await posts.claimDue(e.DB, Date.now(), rows.length)).map((r) => publishRow(e, r))) : [];
+    const results = body.type === "now" ? await Promise.all((await posts.claimDue(e.DB, Date.now(), rows.length, group)).map((r) => publishRow(e, r))) : [];
     const failed = results.filter((r) => !r.ok);
     if (failed.length) return NextResponse.json({ group, count: rows.length, errors: failed.map((f) => (f as { error: string }).error) }, { status: 207 });
     return NextResponse.json({ group, count: rows.length });
