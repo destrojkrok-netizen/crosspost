@@ -123,6 +123,11 @@ export function Queue({
                     <p className="mt-1.5 line-clamp-3 text-sm">
                       {first.content || <em className="text-muted-foreground">media only</em>}
                     </p>
+                    {g.items.some((p) => p.error) && (
+                      <p className="mt-1 line-clamp-2 text-xs text-destructive">
+                        {g.items.find((p) => p.error)?.error}
+                      </p>
+                    )}
                     <div className="mt-2 flex items-center gap-1.5">
                       {g.items.map((p) => (
                         <ProviderBadge
@@ -211,7 +216,7 @@ function PostStats({
     const r = await fetch(`/api/analytics/post/${encodeURIComponent(post.id)}?days=7`, {
       cache: "no-store",
     });
-    if (r.ok) setStats(await r.json());
+    if (r.ok) setStats((await r.json()) as MetricSeries[] | { missing: true });
   }, [post.id]);
   usePolling(load, POST_STATS_POLL_MS, [load, refreshKey]);
 

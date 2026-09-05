@@ -21,6 +21,7 @@ function localDefault(minutesAhead = 15) {
 }
 
 type Media = MediaRef & { name: string; preview?: string };
+const THREAD_HINT = "Put --- on its own line to start a thread reply (X, Threads, Bluesky).";
 
 export function Composer({
   channels,
@@ -74,13 +75,14 @@ export function Composer({
       form.append("file", file);
       try {
         const res = await fetch("/api/upload", { method: "POST", body: form });
-        const data = await res.json();
+        const data = (await res.json()) as { error?: string; path: string; type?: string };
         if (!res.ok) throw new Error(data.error ?? "Upload failed");
         setMedia((m) => [
           ...m,
           {
             id: Math.random().toString(36).slice(2, 9),
             path: data.path,
+            type: data.type ?? file.type,
             name: file.name,
             preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
           },
@@ -103,7 +105,7 @@ export function Composer({
     if (type === "schedule" && date.getTime() < Date.now())
       return onError("Scheduled time is in the past");
     setBusy(type);
-    const ok = await onSubmit(type, date.toISOString(), texts, media.map(({ id, path }) => ({ id, path })));
+    const ok = await onSubmit(type, date.toISOString(), texts, media.map(({ id, path, type: t }) => ({ id, path, type: t })));
     setBusy(null);
     if (ok) {
       setTexts({ [BASE]: "" });
@@ -162,6 +164,7 @@ export function Composer({
           )}
         </div>
 
+        {channels.length > 0 && <p className="text-[11px] text-muted-foreground">{THREAD_HINT}</p>}
         {channels.length > 0 && (
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             {channels.map((c) => {
@@ -231,7 +234,7 @@ export function Composer({
               }}
             />
             <span className="text-xs text-muted-foreground">
-              or drop files · uploaded to Postiz first
+              or drop files · stored in R2, platforms fetch them by URL
             </span>
           </div>
         </div>

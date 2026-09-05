@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, CalendarClock, PenSquare, Radio } from "lucide-react";
 import type { AppStatus, Channel, CreatePostBody, MediaRef, QueuedPost } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -52,9 +52,9 @@ export function App({
 
   const loadPosts = useCallback(async () => {
     const res = await fetch("/api/posts", { cache: "no-store" });
-    const data = await res.json();
+    const data = (await res.json()) as { error?: string };
     if (!res.ok) return notify({ kind: "error", text: data.error ?? "Could not load posts" });
-    setPosts(data);
+    setPosts(data as QueuedPost[]);
     setNow(Date.now());
   }, [notify]);
 
@@ -63,11 +63,27 @@ export function App({
 
   const refreshChannels = useCallback(async () => {
     const res = await fetch("/api/integrations", { cache: "no-store" });
-    const data = await res.json();
+    const data = (await res.json()) as { error?: string };
     if (!res.ok) return notify({ kind: "error", text: data.error ?? "Could not load channels" });
-    setChannels(data);
-    setSelected((s) => new Set([...s].filter((id) => data.some((c: Channel) => c.id === id))));
+    const list = data as Channel[];
+    setChannels(list);
+    setSelected((s) => new Set([...s].filter((id) => list.some((c) => c.id === id))));
   }, [notify]);
+
+  // Back from an OAuth callback: show the outcome, drop the query, reload channels.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const connected = q.get("connected");
+    const failed = q.get("connect_error");
+    if (!connected && !failed) return;
+    window.history.replaceState(null, "", "/");
+    const t = setTimeout(() => {
+      notify(connected ? { kind: "ok", text: `Connected ${connected}` } : { kind: "error", text: failed! });
+      if (connected) void refreshChannels();
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A channel's character limit is fetched the first time it is selected.
   const ensureLimit = useCallback(
@@ -76,7 +92,7 @@ export function App({
       setLimits((l) => ({ ...l, [id]: 0 }));
       fetch(`/api/settings/${encodeURIComponent(id)}`)
         .then((r) => r.json())
-        .then((s) => setLimits((l) => ({ ...l, [id]: Number(s?.maxLength) || 0 })))
+        .then((s: { maxLength?: number }) => setLimits((l) => ({ ...l, [id]: Number(s?.maxLength) || 0 })))
         .catch(() => undefined);
     },
     [limits],
@@ -105,7 +121,7 @@ export function App({
   const removeChannel = async (channel: Channel) => {
     const res = await fetch(`/api/integrations/${encodeURIComponent(channel.id)}`, { method: "DELETE" });
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
       return notify({ kind: "error", text: data.error ?? "Could not remove the channel" });
     }
     setChannels((all) => all.filter((c) => c.id !== channel.id));
@@ -126,11 +142,12 @@ export function App({
     const body: CreatePostBody = {
       type,
       date,
-      shortLink: false,
-      tags: [],
       posts: selectedChannels.map((c) => ({
         integration: { id: c.id },
-        value: [{ content: texts[c.id] ?? texts.__base ?? "", image: media }],
+        // "---" on its own line splits a thread; providers without threads join the parts.
+        value: (texts[c.id] ?? texts.__base ?? "")
+          .split(/\n\s*---\s*\n/)
+          .map((content, i) => ({ content, image: i === 0 ? media : [] })),
       })),
     };
     const res = await fetch("/api/posts", {
@@ -138,10 +155,15 @@ export function App({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
-    if (!res.ok) {
+    const data = (await res.json()) as { error?: string; errors?: string[] };
+    if (!res.ok && res.status !== 207) {
       notify({ kind: "error", text: data.error ?? "Failed" });
       return false;
+    }
+    if (data.errors?.length) {
+      notify({ kind: "error", text: `Some channels failed: ${data.errors.join(" · ")}` });
+      void loadPosts();
+      return true;
     }
     const n = selectedChannels.length;
     notify({
@@ -162,7 +184,7 @@ export function App({
     const id = post.group ?? post.id;
     const res = await fetch(`/api/posts/${encodeURIComponent(id)}`, { method: "DELETE" });
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
       return notify({ kind: "error", text: data.error ?? "Delete failed" });
     }
     notify({ kind: "ok", text: "Deleted" });
@@ -173,7 +195,7 @@ export function App({
     <ChannelPicker
       channels={channels}
       selected={selected}
-      demo={status.demo}
+      demo={false}
       onToggle={toggle}
       onSelectAll={selectAll}
       onClear={() => setSelected(new Set())}
@@ -215,12 +237,12 @@ export function App({
             {status.demo ? (
               <Badge variant="outline" className="border-warning/40 text-warning">
                 <Radio className="size-3" />
-                Demo · set POSTIZ_API_KEY
+                Database not ready
               </Badge>
             ) : (
               <Badge variant="outline" className="border-success/40 text-success">
                 <Radio className="size-3" />
-                {new URL(status.apiUrl).host}
+                {status.appUrl ? new URL(status.appUrl).host : "self-hosted"}
               </Badge>
             )}
           </div>
@@ -276,7 +298,6 @@ export function App({
           setChannels((all) => [...all, channel]);
           notify({ kind: "ok", text: `Added ${channel.name}` });
         }}
-        onRefresh={refreshChannels}
       />
 
       {toast && (

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Plus, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ExternalLink, KeyRound, Plus } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,52 +12,50 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { PROVIDERS } from "@/lib/providers";
-import type { AppStatus, Channel, NewChannel } from "@/lib/types";
+import { PROVIDER_INFO, type ProviderInfo } from "@/lib/providers-public";
+import type { AppStatus, Channel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ProviderBadge } from "./ProviderBadge";
+
+const SECRET_HINT: Record<string, string> = {
+  threads: "THREADS_APP_ID / THREADS_APP_SECRET",
+  x: "X_CLIENT_ID / X_CLIENT_SECRET",
+  instagram: "IG_APP_ID / IG_APP_SECRET",
+  tiktok: "TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET",
+};
 
 export function AddChannelDialog({
   open,
   onOpenChange,
   status,
   onAdded,
-  onRefresh,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   status: AppStatus;
   onAdded: (channel: Channel) => void;
-  onRefresh: () => Promise<void>;
 }) {
-  const [provider, setProvider] = useState(PROVIDERS[0].id);
-  const [name, setName] = useState("");
-  const [picture, setPicture] = useState("");
+  const [pick, setPick] = useState<ProviderInfo>(PROVIDER_INFO[0]);
+  const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async () => {
+  const canConnect = status.connectable.includes(pick.id);
+  const redirect = `${status.appUrl || ""}/api/connect/${pick.id}/callback`;
+
+  const submitToken = async () => {
     setBusy(true);
     setError(null);
-    const body: NewChannel = { name: name.trim(), identifier: provider, picture: picture.trim() || null };
     const res = await fetch("/api/integrations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ identifier: pick.id, fields }),
     });
-    const data = await res.json();
+    const data = (await res.json()) as Channel & { error?: string };
     setBusy(false);
-    if (!res.ok) return setError(data.error ?? "Could not add the channel");
+    if (!res.ok) return setError(data.error ?? "Could not connect");
     onAdded(data);
-    setName("");
-    setPicture("");
-    onOpenChange(false);
-  };
-
-  const refresh = async () => {
-    setBusy(true);
-    await onRefresh();
-    setBusy(false);
+    setFields({});
     onOpenChange(false);
   };
 
@@ -67,83 +65,84 @@ export function AddChannelDialog({
         <DialogHeader>
           <DialogTitle>Add a channel</DialogTitle>
           <DialogDescription>
-            {status.demo
-              ? "Demo mode: the channel is local to this app. With a Postiz key, accounts connect through Postiz."
-              : "Accounts connect through OAuth in Postiz. Connect it there, then pull the list here."}
+            Threads, X, Instagram and TikTok connect through OAuth with your own developer app.
+            Telegram and Bluesky take a token.
           </DialogDescription>
         </DialogHeader>
 
-        {status.demo ? (
+        <div className="grid grid-cols-2 gap-1 rounded-md border p-1">
+          {PROVIDER_INFO.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => {
+                setPick(p);
+                setError(null);
+              }}
+              aria-pressed={p.id === pick.id}
+              className={cn(
+                "flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition",
+                p.id === pick.id ? "bg-primary/15 ring-1 ring-primary/60" : "hover:bg-accent",
+              )}
+            >
+              <ProviderBadge provider={p.id} />
+              <span className="truncate">{p.label}</span>
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                {p.auth === "oauth" ? (status.connectable.includes(p.id) ? "oauth" : "needs keys") : "token"}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {pick.auth === "oauth" ? (
+          canConnect ? (
+            <p className="text-sm text-muted-foreground">
+              You will be sent to {pick.label} to approve access, then back here.
+            </p>
+          ) : (
+            <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-xs">
+              <p className="mb-1 font-medium text-warning">App credentials missing</p>
+              <p className="text-muted-foreground">
+                Create a developer app at {pick.label}, set its redirect URI to{" "}
+                <code className="break-all text-foreground">{redirect}</code>, then put{" "}
+                <code className="text-foreground">{SECRET_HINT[pick.id]}</code> into{" "}
+                <code>.dev.vars</code> (local) or <code>wrangler secret put</code> (production) and restart.
+              </p>
+            </div>
+          )
+        ) : (
           <div className="grid gap-3">
-            <label className="grid gap-1.5 text-xs text-muted-foreground">
-              Platform
-              <div className="grid max-h-44 grid-cols-2 gap-1 overflow-y-auto rounded-md border p-1">
-                {PROVIDERS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setProvider(p.id)}
-                    aria-pressed={p.id === provider}
-                    className={cn(
-                      "flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground transition",
-                      p.id === provider ? "bg-primary/15 ring-1 ring-primary/60" : "hover:bg-accent",
-                    )}
-                  >
-                    <ProviderBadge provider={p.id} />
-                    <span className="truncate">{p.label}</span>
-                  </button>
-                ))}
-              </div>
-            </label>
-            <label className="grid gap-1.5 text-xs text-muted-foreground">
-              Account name
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="@handle or page name"
-                maxLength={80}
-                onKeyDown={(e) => e.key === "Enter" && name.trim() && void submit()}
-              />
-            </label>
-            <label className="grid gap-1.5 text-xs text-muted-foreground">
-              Avatar URL (optional)
-              <Input
-                value={picture}
-                onChange={(e) => setPicture(e.target.value)}
-                placeholder="https://…"
-                inputMode="url"
-              />
-            </label>
+            {pick.fields?.map((f) => (
+              <label key={f.name} className="grid gap-1.5 text-xs text-muted-foreground">
+                {f.label}
+                <Input
+                  type={f.secret ? "password" : "text"}
+                  value={fields[f.name] ?? ""}
+                  placeholder={f.placeholder}
+                  autoComplete="off"
+                  onChange={(e) => setFields((v) => ({ ...v, [f.name]: e.target.value }))}
+                  onKeyDown={(e) => e.key === "Enter" && void submitToken()}
+                />
+              </label>
+            ))}
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
-        ) : (
-          <ol className="list-decimal space-y-1.5 pl-5 text-sm">
-            <li>
-              Open Postiz →{" "}
-              <a
-                href={`${status.postizUrl}/launches`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline-offset-4 hover:underline"
-              >
-                Launches <ExternalLink className="inline size-3" />
-              </a>{" "}
-              → <b>Add channel</b>, pick the platform, finish OAuth.
-            </li>
-            <li>Come back and refresh the list below.</li>
-          </ol>
         )}
 
         <DialogFooter>
-          {status.demo ? (
-            <Button disabled={busy || !name.trim()} onClick={() => void submit()}>
-              <Plus className="size-4" />
-              {busy ? "Adding…" : "Add channel"}
-            </Button>
+          {pick.auth === "oauth" ? (
+            <a
+              href={canConnect ? `/api/connect/${pick.id}` : undefined}
+              aria-disabled={!canConnect}
+              className={cn(buttonVariants({ variant: "default" }), !canConnect && "pointer-events-none opacity-50")}
+            >
+              <ExternalLink className="size-4" />
+              Connect {pick.label}
+            </a>
           ) : (
-            <Button disabled={busy} onClick={() => void refresh()}>
-              <RefreshCw className={cn("size-4", busy && "animate-spin")} />
-              {busy ? "Refreshing…" : "Refresh channels"}
+            <Button disabled={busy || !pick.fields?.every((f) => fields[f.name]?.trim())} onClick={() => void submitToken()}>
+              {busy ? <KeyRound className="size-4 animate-pulse" /> : <Plus className="size-4" />}
+              {busy ? "Checking…" : `Add ${pick.label}`}
             </Button>
           )}
         </DialogFooter>

@@ -1,30 +1,27 @@
 import { App } from "@/components/App";
-import { listChannels, listPosts, status } from "@/lib/postiz";
-import type { Channel, QueuedPost } from "@/lib/types";
+import { channels, posts, toChannel, toPost } from "@/lib/db";
+import { env } from "@/lib/env";
+import { connectable } from "@/lib/providers";
+import type { AppStatus, Channel, QueuedPost } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const appStatus = status();
   const now = Date.now();
-  let channels: Channel[] = [];
-  let posts: QueuedPost[] = [];
+  let status: AppStatus = { configured: false, demo: false, appUrl: "", connectable: [] };
+  let channelList: Channel[] = [];
+  let postList: QueuedPost[] = [];
   let error: string | null = null;
   try {
-    [channels, posts] = await Promise.all([
-      listChannels(),
-      listPosts(new Date(now - 30 * 864e5).toISOString(), new Date(now + 60 * 864e5).toISOString()),
-    ]);
+    const e = await env();
+    status = { configured: true, demo: false, appUrl: e.APP_URL, connectable: connectable(e) };
+    const rows = await channels.all(e.DB);
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    channelList = rows.map(toChannel);
+    postList = (await posts.between(e.DB, now - 30 * 864e5, now + 60 * 864e5)).map((r) => toPost(r, byId.get(r.channel_id)));
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
+    if (/no such table/i.test(error)) error = "Database is empty: run `npm run db:migrate:local` (or db:migrate for production).";
   }
-  return (
-    <App
-      status={appStatus}
-      initialChannels={channels}
-      initialPosts={posts}
-      initialNow={now}
-      initialError={error}
-    />
-  );
+  return <App status={status} initialChannels={channelList} initialPosts={postList} initialNow={now} initialError={error} />;
 }

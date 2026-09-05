@@ -47,7 +47,7 @@ export function Analytics({
       const r = await fetch(`/api/analytics/${encodeURIComponent(activeId)}?days=${days}`, {
         cache: "no-store",
       });
-      const data = await r.json();
+      const data = (await r.json()) as MetricSeries[] & { error?: string };
       if (!r.ok) throw new Error(data.error ?? "Analytics unavailable");
       setSeries(data as MetricSeries[]);
       setError(null);

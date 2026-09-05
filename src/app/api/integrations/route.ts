@@ -1,33 +1,33 @@
 import { NextResponse } from "next/server";
-import { addChannel, listChannels } from "@/lib/postiz";
-import { PROVIDERS } from "@/lib/providers";
-import type { NewChannel } from "@/lib/types";
-import { fail } from "../_lib";
+import { createChannel, providerContext } from "@/lib/channels";
+import { channels, toChannel } from "@/lib/db";
+import { env } from "@/lib/env";
+import { provider } from "@/lib/providers";
+import { bad, fail } from "../_lib";
 
 export async function GET() {
   try {
-    return NextResponse.json(await listChannels());
+    const e = await env();
+    return NextResponse.json((await channels.all(e.DB)).map(toChannel));
   } catch (error) {
     return fail(error);
   }
 }
 
+/** Token-based providers (Telegram, Bluesky): the form's fields become the channel. */
 export async function POST(request: Request) {
-  let body: NewChannel;
+  let body: { identifier?: string; fields?: Record<string, string> };
   try {
-    body = (await request.json()) as NewChannel;
+    body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return bad("Invalid JSON");
   }
-  const name = body.name?.trim();
-  if (!name || name.length > 80) return NextResponse.json({ error: "Name is required" }, { status: 400 });
-  if (!PROVIDERS.some((p) => p.id === body.identifier))
-    return NextResponse.json({ error: "Unknown platform" }, { status: 400 });
-  const picture = body.picture?.trim();
-  if (picture && !/^https:\/\//.test(picture))
-    return NextResponse.json({ error: "Avatar must be an https URL" }, { status: 400 });
   try {
-    return NextResponse.json(await addChannel({ name, identifier: body.identifier, picture }));
+    const e = await env();
+    const p = provider(body.identifier ?? "");
+    if (p.auth !== "token" || !p.fromFields) return bad(`${p.label} connects through OAuth: use /api/connect/${p.id}`);
+    const cred = await p.fromFields(providerContext(e, p.id), body.fields ?? {});
+    return NextResponse.json(await createChannel(e, p.id, cred));
   } catch (error) {
     return fail(error);
   }

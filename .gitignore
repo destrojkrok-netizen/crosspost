@@ -42,3 +42,11 @@ next-env.d.ts
 
 # Demo-mode channels you add
 data/
+
+# Cloudflare
+.open-next/
+.wrangler/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
