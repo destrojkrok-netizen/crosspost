@@ -20,7 +20,8 @@ export async function POST(request: Request) {
   try {
     const e = await env();
     const user = await users.byEmail(e.DB, email);
-    if (!user?.password_hash) return NextResponse.json({ ok: true });
+    // A Google-only account may set a password this way too; it then has both sign-ins.
+    if (!user) return NextResponse.json({ ok: true });
     const token = randomBase64url(32);
     await passwordResets.create(e.DB, await sha256base64url(token), user.id, Date.now() + TTL_MS);
     const link = `${e.APP_URL.replace(/\/$/, "")}/reset?token=${token}`;

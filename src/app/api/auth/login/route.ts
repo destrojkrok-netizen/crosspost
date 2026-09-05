@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   try {
     const e = await env();
     const user = await users.byEmail(e.DB, email);
-    if (user && !user.password_hash) return bad("This account signs in with Google", 400);
+    if (user && !user.password_hash) return bad("This account signs in with Google — or set a password via “Forgot password?”", 400);
     // One message for both cases, so the form does not reveal which emails exist.
     if (!user || !(await verifyPassword(body.password ?? "", user.password_hash))) return bad("Wrong email or password", 401);
     await users.touch(e.DB, user.id);
