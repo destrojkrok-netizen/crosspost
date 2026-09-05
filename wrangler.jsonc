@@ -21,6 +21,6 @@
   // TIKTOK_CLIENT_SECRET, IG_APP_ID, IG_APP_SECRET.
   "vars": {
     "APP_URL": "https://crosspost.destrojkrok.workers.dev",
-    "MEDIA_PUBLIC_URL": ""
+    "MEDIA_PUBLIC_URL": "https://pub-4f092f3191f343a39b8b512916ff8a8e.r2.dev"
   }
 }
