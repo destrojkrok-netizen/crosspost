@@ -14,7 +14,15 @@ export type ChannelRow = {
   user_id: string | null;
 };
 
-export type UserRow = { id: string; email: string; name: string | null; picture: string | null; created_at: number; last_login_at: number };
+export type UserRow = {
+  id: string;
+  email: string;
+  name: string | null;
+  picture: string | null;
+  created_at: number;
+  last_login_at: number;
+  password_hash: string | null;
+};
 
 export type PostRow = {
   id: string;
@@ -70,6 +78,15 @@ export const users = {
       .run();
     return (await users.byEmail(db, u.email))!;
   },
+  create: async (db: D1Database, u: { id: string; email: string; name?: string; passwordHash: string }) => {
+    const now = Date.now();
+    await db
+      .prepare("INSERT INTO users (id, email, name, picture, created_at, last_login_at, password_hash) VALUES (?,?,?,?,?,?,?)")
+      .bind(u.id, u.email.toLowerCase(), u.name ?? null, null, now, now, u.passwordHash)
+      .run();
+    return (await users.byEmail(db, u.email))!;
+  },
+  touch: (db: D1Database, id: string) => db.prepare("UPDATE users SET last_login_at = ? WHERE id = ?").bind(Date.now(), id).run(),
   /** Rows created before accounts existed belong to the first allowed owner who signs in. */
   claimLegacy: (db: D1Database, userId: string) =>
     db.batch([

@@ -6,7 +6,7 @@ No third-party posting service in the middle.
 
 ## Accounts
 
-Sign-in is Google OAuth; every Google account gets its own workspace (channels, queue,
+Sign-in is Google OAuth or email + password (PBKDF2-SHA256 hashes in D1); every account gets its own workspace (channels, queue,
 media, analytics). Create an OAuth client at console.cloud.google.com (Web application)
 with redirect URI `<APP_URL>/api/auth/google/callback` and set `GOOGLE_CLIENT_ID` /
 `GOOGLE_CLIENT_SECRET`. `ALLOWED_EMAILS` (optional) restricts sign-in to a list;

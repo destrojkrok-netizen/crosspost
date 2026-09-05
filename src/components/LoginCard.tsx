@@ -1,6 +1,7 @@
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { EmailAuthForm } from "./EmailAuthForm";
 
 export function LoginCard({ configured, error, next }: { configured: boolean; error: string | null; next: string }) {
   return (
@@ -12,20 +13,24 @@ export function LoginCard({ configured, error, next }: { configured: boolean; er
             <span className="font-semibold tracking-tight">Crosspost</span>
           </div>
           <CardTitle>Sign in</CardTitle>
-          <CardDescription>Sign in with Google. Each account gets its own channels, queue and analytics.</CardDescription>
+          <CardDescription>Each account gets its own channels, queue and analytics.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3">
+        <CardContent className="grid gap-4">
           {error && <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{error}</p>}
-          {configured ? (
-            <a href={`/api/auth/google?next=${encodeURIComponent(next)}`} className={cn(buttonVariants({ variant: "default" }), "w-full")}>
-              <GoogleMark />
-              Continue with Google
-            </a>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Google sign-in is not configured: set <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code>.
-            </p>
+          {configured && (
+            <>
+              <a href={`/api/auth/google?next=${encodeURIComponent(next)}`} className={cn(buttonVariants({ variant: "default" }), "w-full")}>
+                <GoogleMark />
+                Continue with Google
+              </a>
+              <div className="flex items-center gap-3 text-[11px] uppercase tracking-wide text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                or with email
+                <span className="h-px flex-1 bg-border" />
+              </div>
+            </>
           )}
+          <EmailAuthForm next={next} />
         </CardContent>
       </Card>
     </main>
