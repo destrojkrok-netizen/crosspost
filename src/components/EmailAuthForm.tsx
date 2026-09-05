@@ -58,6 +58,11 @@ export function EmailAuthForm({ next }: { next: string }) {
         {mode === "login" ? <LogIn className="size-4" /> : <UserPlus className="size-4" />}
         {busy ? "…" : mode === "login" ? "Sign in with email" : "Create account"}
       </Button>
+      {mode === "login" && (
+        <a href="/forgot" className="text-center text-xs text-muted-foreground hover:text-foreground">
+          Forgot password?
+        </a>
+      )}
       <button
         type="button"
         onClick={() => {

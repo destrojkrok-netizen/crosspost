@@ -25,6 +25,8 @@
     // (comma-separated) to restrict it. OWNER_EMAILS inherit channels created before accounts
     // existed. Secrets: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SECRET.
     "OWNER_EMAILS": "destrojkrok@gmail.com",
+    // Password-reset mail sender (Resend). Secret: RESEND_API_KEY.
+    "MAIL_FROM": "Crosspost <onboarding@resend.dev>",
     "MEDIA_PUBLIC_URL": "https://pub-4f092f3191f343a39b8b512916ff8a8e.r2.dev"
   }
 }

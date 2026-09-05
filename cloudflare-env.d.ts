@@ -24,6 +24,8 @@ declare global {
     SESSION_SECRET?: string;
     ALLOWED_EMAILS?: string;
     OWNER_EMAILS?: string;
+    RESEND_API_KEY?: string;
+    MAIL_FROM?: string;
   }
 }
 

@@ -4,7 +4,7 @@ import { SESSION_COOKIE, sessionSecret, verifySession } from "@/lib/session";
 
 // Everything needs a signed-in user except: sign-in itself, the cron (shared secret),
 // public media, and the OAuth callbacks platforms redirect the browser to.
-const PUBLIC = [/^\/login$/, /^\/api\/auth\//, /^\/api\/cron\//, /^\/api\/media\//, /^\/api\/status$/];
+const PUBLIC = [/^\/login$/, /^\/forgot$/, /^\/reset$/, /^\/api\/auth\//, /^\/api\/cron\//, /^\/api\/media\//, /^\/api\/status$/];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

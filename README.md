@@ -11,7 +11,9 @@ media, analytics). Create an OAuth client at console.cloud.google.com (Web appli
 with redirect URI `<APP_URL>/api/auth/google/callback` and set `GOOGLE_CLIENT_ID` /
 `GOOGLE_CLIENT_SECRET`. `ALLOWED_EMAILS` (optional) restricts sign-in to a list;
 `OWNER_EMAILS` inherit channels that were created before accounts existed. Sessions are
-HMAC-signed cookies (`SESSION_SECRET`, falls back to `TOKEN_KEY`), 30 days.
+HMAC-signed cookies (`SESSION_SECRET`, falls back to `TOKEN_KEY`), 30 days. Password reset
+emails go through Resend: set `RESEND_API_KEY` (secret) and `MAIL_FROM`; locally without a
+key the reset link is printed and shown on the page.
 
 ## Run locally
 
@@ -44,6 +46,7 @@ npx wrangler secret put TOKEN_KEY        # openssl rand -base64 32
 npx wrangler secret put CRON_SECRET
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put RESEND_API_KEY        # password reset emails
 npx wrangler secret put THREADS_APP_ID   # …and the other platform keys you use
 npm run cf:deploy
 ```

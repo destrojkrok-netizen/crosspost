@@ -29,3 +29,7 @@ ALLOWED_EMAILS=
 OWNER_EMAILS=you@gmail.com
 # Session signing key (falls back to TOKEN_KEY)
 SESSION_SECRET=
+
+# Password reset emails via Resend (resend.com → API key). Without it, dev mode prints the link.
+RESEND_API_KEY=
+MAIL_FROM=Crosspost <onboarding@resend.dev>

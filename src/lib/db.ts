@@ -86,6 +86,9 @@ export const users = {
       .run();
     return (await users.byEmail(db, u.email))!;
   },
+  byId: (db: D1Database, id: string) => db.prepare("SELECT * FROM users WHERE id = ?").bind(id).first<UserRow>(),
+  setPassword: (db: D1Database, id: string, hash: string) =>
+    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(hash, id).run(),
   touch: (db: D1Database, id: string) => db.prepare("UPDATE users SET last_login_at = ? WHERE id = ?").bind(Date.now(), id).run(),
   /** Rows created before accounts existed belong to the first allowed owner who signs in. */
   claimLegacy: (db: D1Database, userId: string) =>
@@ -206,4 +209,22 @@ export const oauthStates = {
 export const media = {
   insert: (db: D1Database, r: { id: string; key: string; url: string; type: string; size: number; userId: string }) =>
     db.prepare("INSERT INTO media (id, key, url, type, size, created_at, user_id) VALUES (?,?,?,?,?,?,?)").bind(r.id, r.key, r.url, r.type, r.size, Date.now(), r.userId).run(),
+};
+
+export const passwordResets = {
+  create: (db: D1Database, tokenHash: string, userId: string, expiresAt: number) =>
+    db.batch([
+      db.prepare("DELETE FROM password_resets WHERE user_id = ? OR expires_at < ?").bind(userId, Date.now()),
+      db.prepare("INSERT INTO password_resets (token_hash, user_id, expires_at, created_at) VALUES (?,?,?,?)").bind(tokenHash, userId, expiresAt, Date.now()),
+    ]),
+  /** Consume a token: returns the row once, only while unused and unexpired. */
+  take: async (db: D1Database, tokenHash: string) => {
+    const row = await db
+      .prepare("SELECT * FROM password_resets WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?")
+      .bind(tokenHash, Date.now())
+      .first<{ token_hash: string; user_id: string }>();
+    if (!row) return null;
+    const r = await db.prepare("UPDATE password_resets SET used_at = ? WHERE token_hash = ? AND used_at IS NULL").bind(Date.now(), tokenHash).run();
+    return r.meta.changes === 1 ? row : null;
+  },
 };
